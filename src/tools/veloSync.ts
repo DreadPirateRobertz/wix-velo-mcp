@@ -1,14 +1,10 @@
 import { runInDir } from '../lib/exec.js';
+import { isValidTag } from '../lib/tags.js';
 import type { VeloConfig } from '../lib/config.js';
+import { join } from 'node:path';
+import { randomBytes } from 'node:crypto';
 
-const TAG_PATTERN = /^v\d+\.\d+\.\d+$/;
-
-/**
- * Validate that a ref looks like a semver release tag.
- */
-export function isValidTag(tag: string): boolean {
-  return TAG_PATTERN.test(tag);
-}
+export { isValidTag };
 
 /** Files/dirs to copy from dev to prod */
 const SYNC_INCLUDES = ['src/', 'tests/', 'package.json', 'vitest.config.js'];
@@ -34,25 +30,31 @@ export async function veloSync(
     return `ERROR: Tag "${tag}" not found in dev repo at ${config.devRepo}`;
   }
 
-  // Create a temporary worktree to checkout the tag
-  const tmpDir = `/tmp/velo-sync-${tag}-${Date.now()}`;
+  // Create a temporary worktree (relative path, not /tmp/)
+  const worktreeId = randomBytes(4).toString('hex');
+  const worktreePath = join(config.devRepo, `../.velo-sync-${worktreeId}`);
   const worktree = await runInDir(config.devRepo, 'git', [
-    'worktree', 'add', '--detach', tmpDir, tag,
+    'worktree', 'add', '--detach', worktreePath, tag,
   ]);
   if (worktree.exitCode !== 0) {
     return `ERROR: Failed to checkout tag ${tag}: ${worktree.stderr}`;
   }
 
   try {
-    // Clean prod repo src/ and tests/ (keep wix.config.json, .git, node_modules)
-    await runInDir(config.prodRepo, 'rm', ['-rf', 'src/', 'tests/']);
+    // Clean prod repo src/ and tests/ — check exit code
+    const rmResult = await runInDir(config.prodRepo, 'rm', ['-rf', 'src/', 'tests/']);
+    if (rmResult.exitCode !== 0) {
+      return `ERROR: Failed to rm prod files: ${rmResult.stderr}`;
+    }
 
-    // Copy each included path
+    // Copy each included path — check exit code on each
     for (const item of SYNC_INCLUDES) {
-      if (item.endsWith('/')) {
-        await runInDir(tmpDir, 'cp', ['-r', item, `${config.prodRepo}/${item}`]);
-      } else {
-        await runInDir(tmpDir, 'cp', [item, `${config.prodRepo}/${item}`]);
+      const cpArgs = item.endsWith('/')
+        ? ['-r', item, `${config.prodRepo}/${item}`]
+        : [item, `${config.prodRepo}/${item}`];
+      const cpResult = await runInDir(worktreePath, 'cp', cpArgs);
+      if (cpResult.exitCode !== 0) {
+        return `ERROR: Failed to copy "${item}": ${cpResult.stderr}`;
       }
     }
 
@@ -81,6 +83,9 @@ export async function veloSync(
     return `Synced ${tag} to production repo.\n\n${diff.stdout.trim()}\n\n${pushStatus}`;
   } finally {
     // Clean up worktree
-    await runInDir(config.devRepo, 'git', ['worktree', 'remove', '--force', tmpDir]);
+    const cleanup = await runInDir(config.devRepo, 'git', ['worktree', 'remove', '--force', worktreePath]);
+    if (cleanup.exitCode !== 0) {
+      console.error(`[veloSync] Worktree cleanup failed for ${worktreePath}: ${cleanup.stderr}`);
+    }
   }
 }
