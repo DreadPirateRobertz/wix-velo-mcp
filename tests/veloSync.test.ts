@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { veloSync } from '../src/tools/veloSync.js';
 import { isValidTag } from '../src/lib/tags.js';
 
-// ── isValidTag (now from shared lib) ─────────────────────────────────
+// ── isValidTag ─────────────────────────────────────────────────────
 
 describe('isValidTag', () => {
   it('accepts v0.0.0', () => expect(isValidTag('v0.0.0')).toBe(true));
@@ -234,6 +234,26 @@ describe('veloSync', () => {
     const result = await veloSync(config, { tag: 'v0.0.0' });
     expect(result).toContain('ERROR');
     expect(result).toContain('tests/');
+  });
+
+  it('returns error when git add fails', async () => {
+    mockRunInDir.mockImplementation((_cwd: string, cmd: string, args: string[]) => {
+      if (cmd === 'git' && args[0] === 'tag' && args[1] === '-l') return { stdout: 'v0.0.0', stderr: '', exitCode: 0 };
+      if (cmd === 'git' && args[0] === 'worktree') return { stdout: '', stderr: '', exitCode: 0 };
+      if (cmd === 'rm') return { stdout: '', stderr: '', exitCode: 0 };
+      if (cmd === 'cp') return { stdout: '', stderr: '', exitCode: 0 };
+      if (cmd === 'git' && args[0] === 'add') return { stdout: '', stderr: 'fatal: not a git repository', exitCode: 128 };
+      return { stdout: '', stderr: '', exitCode: 0 };
+    });
+
+    const result = await veloSync(config, { tag: 'v0.0.0' });
+    expect(result).toContain('ERROR');
+    expect(result).toContain('stage');
+
+    const commitCalls = mockRunInDir.mock.calls.filter(
+      (c: unknown[]) => c[1] === 'git' && (c[2] as string[])[0] === 'commit'
+    );
+    expect(commitCalls.length).toBe(0);
   });
 
   // ── Relative worktree path ────────────────────────────────────────

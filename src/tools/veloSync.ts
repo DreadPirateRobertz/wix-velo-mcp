@@ -13,6 +13,7 @@ const SYNC_INCLUDES = ['src/', 'tests/', 'package.json', 'vitest.config.js'];
  * Sync a tagged release from dev repo to production repo.
  * Only accepts semver release tags (v0.0.0, v1.2.3, etc).
  * Checks out the tag via worktree, copies relevant files, commits as 'release: <tag>'.
+ * Returns ERROR and skips commit/push if any subprocess (rm, cp, git add, commit) fails.
  */
 export async function veloSync(
   config: VeloConfig,
@@ -30,7 +31,7 @@ export async function veloSync(
     return `ERROR: Tag "${tag}" not found in dev repo at ${config.devRepo}`;
   }
 
-  // Create a temporary worktree (relative path, not /tmp/)
+  // Create a temporary worktree adjacent to devRepo (not /tmp/)
   const worktreeId = randomBytes(4).toString('hex');
   const worktreePath = join(config.devRepo, `../.velo-sync-${worktreeId}`);
   const worktree = await runInDir(config.devRepo, 'git', [
@@ -59,7 +60,10 @@ export async function veloSync(
     }
 
     // Stage, diff, commit
-    await runInDir(config.prodRepo, 'git', ['add', '-A']);
+    const stage = await runInDir(config.prodRepo, 'git', ['add', '-A']);
+    if (stage.exitCode !== 0) {
+      return `ERROR: Failed to stage changes: ${stage.stderr}`;
+    }
     const diff = await runInDir(config.prodRepo, 'git', ['diff', '--cached', '--stat']);
 
     if (diff.stdout.trim() === '') {
