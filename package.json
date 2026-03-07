@@ -1,0 +1,30 @@
+{
+  "name": "wix-velo-mcp",
+  "version": "0.0.0",
+  "description": "MCP server for Wix Velo code deployment via Wix CLI",
+  "type": "module",
+  "main": "dist/index.js",
+  "bin": {
+    "wix-velo-mcp": "dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.27.0",
+    "execa": "^9.5.0",
+    "zod": "^3.25.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.7.0",
+    "vitest": "^3.0.0"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
