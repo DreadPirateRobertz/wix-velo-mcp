@@ -80,6 +80,10 @@ export async function veloDiff(
       './',
     ]);
 
+    if (rsyncResult.exitCode !== 0) {
+      return `ERROR: rsync failed (exit ${rsyncResult.exitCode}): ${rsyncResult.stderr || rsyncResult.stdout}`;
+    }
+
     const changes = rsyncResult.stdout.trim();
 
     if (!changes) {
@@ -89,11 +93,14 @@ export async function veloDiff(
     return `Changes if synced to ${tag}:\n${changes}`;
   } finally {
     // ── Cleanup worktree ───────────────────────────────────────────
-    await runInDir(devRepo, 'git', [
+    const cleanup = await runInDir(devRepo, 'git', [
       'worktree',
       'remove',
       '--force',
       worktreePath,
     ]);
+    if (cleanup.exitCode !== 0) {
+      console.error(`[veloDiff] Worktree cleanup failed for ${worktreePath}: ${cleanup.stderr}`);
+    }
   }
 }

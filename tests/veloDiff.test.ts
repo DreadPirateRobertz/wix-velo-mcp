@@ -143,6 +143,24 @@ describe('veloDiff', () => {
     expect(result).toContain('Failed to checkout');
   });
 
+  it('returns error when rsync fails', async () => {
+    // git tag -l
+    mockRunInDir.mockResolvedValueOnce({ stdout: 'v0.1.0', stderr: '', exitCode: 0 });
+    // git worktree add
+    mockRunInDir.mockResolvedValueOnce({ stdout: '', stderr: '', exitCode: 0 });
+    // rsync fails with non-zero exit
+    mockRunInDir.mockResolvedValueOnce({ stdout: '', stderr: 'rsync: connection refused', exitCode: 1 });
+    // git worktree remove (cleanup)
+    mockRunInDir.mockResolvedValueOnce({ stdout: '', stderr: '', exitCode: 0 });
+
+    const result = await veloDiff(
+      { devRepo: '/fake/dev', prodRepo: '/fake/prod' },
+      { tag: 'v0.1.0' },
+    );
+    expect(result).toContain('ERROR');
+    expect(result).toContain('rsync failed');
+  });
+
   it('always cleans up worktree even on rsync failure', async () => {
     // git tag -l
     mockRunInDir.mockResolvedValueOnce({ stdout: 'v0.1.0', stderr: '', exitCode: 0 });
