@@ -1,9 +1,11 @@
 import { runInDir } from '../lib/exec.js';
 import type { VeloConfig } from '../lib/config.js';
 
+const TEST_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
+
 /**
  * Publish the Wix site from the prod repo.
- * Pre-checks: clean worktree and passing tests.
+ * Pre-checks: clean worktree and passing tests (5-min timeout).
  * Then runs `npx wix publish --source local -y`.
  */
 export async function veloPublish(config: VeloConfig): Promise<string> {
@@ -15,8 +17,8 @@ export async function veloPublish(config: VeloConfig): Promise<string> {
     return `ERROR: Worktree is dirty. Commit or stash changes first.\n${status.stdout.trim()}`;
   }
 
-  // ── Run tests ──────────────────────────────────────────────────────
-  const tests = await runInDir(prodRepo, 'npm', ['test']);
+  // ── Run tests (with timeout to prevent hanging) ────────────────────
+  const tests = await runInDir(prodRepo, 'npm', ['test'], TEST_TIMEOUT_MS);
   if (tests.exitCode !== 0) {
     const detail = tests.stderr.trim() || tests.stdout.trim() || 'unknown failure';
     return `ERROR: Tests failed. Fix before publishing.\n${detail}`;

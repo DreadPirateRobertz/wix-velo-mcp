@@ -1,11 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { veloPublish } from '../src/tools/veloPublish.js';
 
-const mockRun = vi.fn();
 const mockRunInDir = vi.fn();
 
 vi.mock('../src/lib/exec.js', () => ({
-  run: (...args: unknown[]) => mockRun(...args),
   runInDir: (...args: unknown[]) => mockRunInDir(...args),
 }));
 
@@ -13,7 +11,6 @@ describe('veloPublish', () => {
   const config = { devRepo: '/fake/dev', prodRepo: '/fake/prod' };
 
   beforeEach(() => {
-    mockRun.mockReset();
     mockRunInDir.mockReset();
   });
 
