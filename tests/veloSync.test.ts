@@ -1,7 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { veloSync, isValidTag } from '../src/tools/veloSync.js';
+import { veloSync } from '../src/tools/veloSync.js';
+import { isValidTag } from '../src/lib/tags.js';
 
-// ── isValidTag (pure function, no mocks needed) ──────────────────────
+// ── isValidTag ─────────────────────────────────────────────────────
 
 describe('isValidTag', () => {
   it('accepts v0.0.0', () => expect(isValidTag('v0.0.0')).toBe(true));
@@ -34,43 +35,22 @@ describe('veloSync', () => {
     mockRunInDir.mockReset();
   });
 
-  // Helper to set up a full successful sync flow
   function setupSuccessFlow(tag: string) {
-    let callIndex = 0;
     mockRunInDir.mockImplementation((_cwd: string, cmd: string, args: string[]) => {
-      // 1. tag -l check
       if (cmd === 'git' && args[0] === 'tag' && args[1] === '-l') {
         return { stdout: tag, stderr: '', exitCode: 0 };
       }
-      // 2. worktree add
       if (cmd === 'git' && args[0] === 'worktree' && args[1] === 'add') {
         return { stdout: '', stderr: '', exitCode: 0 };
       }
-      // 3. rm -rf
-      if (cmd === 'rm') {
-        return { stdout: '', stderr: '', exitCode: 0 };
-      }
-      // 4. cp commands
-      if (cmd === 'cp') {
-        return { stdout: '', stderr: '', exitCode: 0 };
-      }
-      // 5. git add
-      if (cmd === 'git' && args[0] === 'add') {
-        return { stdout: '', stderr: '', exitCode: 0 };
-      }
-      // 6. git diff --cached --stat
+      if (cmd === 'rm') return { stdout: '', stderr: '', exitCode: 0 };
+      if (cmd === 'cp') return { stdout: '', stderr: '', exitCode: 0 };
+      if (cmd === 'git' && args[0] === 'add') return { stdout: '', stderr: '', exitCode: 0 };
       if (cmd === 'git' && args[0] === 'diff') {
         return { stdout: ' 3 files changed, 50 insertions(+)', stderr: '', exitCode: 0 };
       }
-      // 7. git commit
-      if (cmd === 'git' && args[0] === 'commit') {
-        return { stdout: '', stderr: '', exitCode: 0 };
-      }
-      // 8. git push
-      if (cmd === 'git' && args[0] === 'push') {
-        return { stdout: '', stderr: '', exitCode: 0 };
-      }
-      // 9. worktree remove (cleanup)
+      if (cmd === 'git' && args[0] === 'commit') return { stdout: '', stderr: '', exitCode: 0 };
+      if (cmd === 'git' && args[0] === 'push') return { stdout: '', stderr: '', exitCode: 0 };
       if (cmd === 'git' && args[0] === 'worktree' && args[1] === 'remove') {
         return { stdout: '', stderr: '', exitCode: 0 };
       }
@@ -98,15 +78,12 @@ describe('veloSync', () => {
 
   it('returns error when worktree creation fails', async () => {
     mockRunInDir.mockImplementation((_cwd: string, cmd: string, args: string[]) => {
-      if (cmd === 'git' && args[0] === 'tag') {
-        return { stdout: 'v0.0.0', stderr: '', exitCode: 0 };
-      }
+      if (cmd === 'git' && args[0] === 'tag') return { stdout: 'v0.0.0', stderr: '', exitCode: 0 };
       if (cmd === 'git' && args[0] === 'worktree' && args[1] === 'add') {
         return { stdout: '', stderr: 'worktree already exists', exitCode: 128 };
       }
       return { stdout: '', stderr: '', exitCode: 0 };
     });
-
     const result = await veloSync(config, { tag: 'v0.0.0' });
     expect(result).toContain('ERROR');
     expect(result).toContain('checkout');
@@ -114,18 +91,11 @@ describe('veloSync', () => {
 
   it('reports no changes when diff is empty', async () => {
     mockRunInDir.mockImplementation((_cwd: string, cmd: string, args: string[]) => {
-      if (cmd === 'git' && args[0] === 'tag' && args[1] === '-l') {
-        return { stdout: 'v0.0.0', stderr: '', exitCode: 0 };
-      }
-      if (cmd === 'git' && args[0] === 'worktree') {
-        return { stdout: '', stderr: '', exitCode: 0 };
-      }
-      if (cmd === 'git' && args[0] === 'diff') {
-        return { stdout: '', stderr: '', exitCode: 0 };
-      }
+      if (cmd === 'git' && args[0] === 'tag' && args[1] === '-l') return { stdout: 'v0.0.0', stderr: '', exitCode: 0 };
+      if (cmd === 'git' && args[0] === 'worktree') return { stdout: '', stderr: '', exitCode: 0 };
+      if (cmd === 'git' && args[0] === 'diff') return { stdout: '', stderr: '', exitCode: 0 };
       return { stdout: '', stderr: '', exitCode: 0 };
     });
-
     const result = await veloSync(config, { tag: 'v0.0.0' });
     expect(result).toContain('No changes');
     expect(result).toContain('v0.0.0');
@@ -141,24 +111,13 @@ describe('veloSync', () => {
 
   it('warns when push fails but sync succeeded', async () => {
     mockRunInDir.mockImplementation((_cwd: string, cmd: string, args: string[]) => {
-      if (cmd === 'git' && args[0] === 'tag' && args[1] === '-l') {
-        return { stdout: 'v0.0.0', stderr: '', exitCode: 0 };
-      }
-      if (cmd === 'git' && args[0] === 'worktree') {
-        return { stdout: '', stderr: '', exitCode: 0 };
-      }
-      if (cmd === 'git' && args[0] === 'diff') {
-        return { stdout: '3 files changed', stderr: '', exitCode: 0 };
-      }
-      if (cmd === 'git' && args[0] === 'commit') {
-        return { stdout: '', stderr: '', exitCode: 0 };
-      }
-      if (cmd === 'git' && args[0] === 'push') {
-        return { stdout: '', stderr: 'remote rejected', exitCode: 1 };
-      }
+      if (cmd === 'git' && args[0] === 'tag' && args[1] === '-l') return { stdout: 'v0.0.0', stderr: '', exitCode: 0 };
+      if (cmd === 'git' && args[0] === 'worktree') return { stdout: '', stderr: '', exitCode: 0 };
+      if (cmd === 'git' && args[0] === 'diff') return { stdout: '3 files changed', stderr: '', exitCode: 0 };
+      if (cmd === 'git' && args[0] === 'commit') return { stdout: '', stderr: '', exitCode: 0 };
+      if (cmd === 'git' && args[0] === 'push') return { stdout: '', stderr: 'remote rejected', exitCode: 1 };
       return { stdout: '', stderr: '', exitCode: 0 };
     });
-
     const result = await veloSync(config, { tag: 'v0.0.0' });
     expect(result).toContain('WARNING');
     expect(result).toContain('Push failed');
@@ -166,51 +125,29 @@ describe('veloSync', () => {
 
   it('returns error when commit fails', async () => {
     mockRunInDir.mockImplementation((_cwd: string, cmd: string, args: string[]) => {
-      if (cmd === 'git' && args[0] === 'tag' && args[1] === '-l') {
-        return { stdout: 'v0.0.0', stderr: '', exitCode: 0 };
-      }
-      if (cmd === 'git' && args[0] === 'worktree') {
-        return { stdout: '', stderr: '', exitCode: 0 };
-      }
-      if (cmd === 'git' && args[0] === 'diff') {
-        return { stdout: '3 files changed', stderr: '', exitCode: 0 };
-      }
-      if (cmd === 'git' && args[0] === 'commit') {
-        return { stdout: '', stderr: 'nothing to commit', exitCode: 1 };
-      }
+      if (cmd === 'git' && args[0] === 'tag' && args[1] === '-l') return { stdout: 'v0.0.0', stderr: '', exitCode: 0 };
+      if (cmd === 'git' && args[0] === 'worktree') return { stdout: '', stderr: '', exitCode: 0 };
+      if (cmd === 'git' && args[0] === 'diff') return { stdout: '3 files changed', stderr: '', exitCode: 0 };
+      if (cmd === 'git' && args[0] === 'commit') return { stdout: '', stderr: 'nothing to commit', exitCode: 1 };
       return { stdout: '', stderr: '', exitCode: 0 };
     });
-
     const result = await veloSync(config, { tag: 'v0.0.0' });
     expect(result).toContain('ERROR');
     expect(result).toContain('commit');
   });
 
-  it('cleans up worktree even on error', async () => {
+  it('cleans up worktree even when rm fails', async () => {
     mockRunInDir.mockImplementation((_cwd: string, cmd: string, args: string[]) => {
-      if (cmd === 'git' && args[0] === 'tag' && args[1] === '-l') {
-        return { stdout: 'v0.0.0', stderr: '', exitCode: 0 };
-      }
-      if (cmd === 'git' && args[0] === 'worktree' && args[1] === 'add') {
-        return { stdout: '', stderr: '', exitCode: 0 };
-      }
-      if (cmd === 'rm') {
-        throw new Error('disk full');
-      }
-      if (cmd === 'git' && args[0] === 'worktree' && args[1] === 'remove') {
-        return { stdout: '', stderr: '', exitCode: 0 };
-      }
+      if (cmd === 'git' && args[0] === 'tag' && args[1] === '-l') return { stdout: 'v0.0.0', stderr: '', exitCode: 0 };
+      if (cmd === 'git' && args[0] === 'worktree' && args[1] === 'add') return { stdout: '', stderr: '', exitCode: 0 };
+      if (cmd === 'rm') return { stdout: '', stderr: 'disk full', exitCode: 1 };
+      if (cmd === 'git' && args[0] === 'worktree' && args[1] === 'remove') return { stdout: '', stderr: '', exitCode: 0 };
       return { stdout: '', stderr: '', exitCode: 0 };
     });
 
-    // Should not throw — cleanup should still run
-    try {
-      await veloSync(config, { tag: 'v0.0.0' });
-    } catch {
-      // If it throws, that's also acceptable — but cleanup should have been attempted
-    }
+    const result = await veloSync(config, { tag: 'v0.0.0' });
+    expect(result).toContain('ERROR');
 
-    // Verify worktree remove was called
     const removeCalls = mockRunInDir.mock.calls.filter(
       (c: unknown[]) => c[1] === 'git' && (c[2] as string[])[0] === 'worktree' && (c[2] as string[])[1] === 'remove'
     );
@@ -220,8 +157,6 @@ describe('veloSync', () => {
   it('uses devRepo for tag check and worktree', async () => {
     setupSuccessFlow('v0.0.0');
     await veloSync(config, { tag: 'v0.0.0' });
-
-    // tag -l should be against devRepo
     const tagCall = mockRunInDir.mock.calls.find(
       (c: unknown[]) => c[1] === 'git' && (c[2] as string[])[0] === 'tag'
     );
@@ -231,15 +166,107 @@ describe('veloSync', () => {
   it('uses prodRepo for git add/commit/push', async () => {
     setupSuccessFlow('v0.0.0');
     await veloSync(config, { tag: 'v0.0.0' });
-
     const addCall = mockRunInDir.mock.calls.find(
       (c: unknown[]) => c[1] === 'git' && (c[2] as string[])[0] === 'add'
     );
     expect(addCall?.[0]).toBe('/fake/prod');
-
     const commitCall = mockRunInDir.mock.calls.find(
       (c: unknown[]) => c[1] === 'git' && (c[2] as string[])[0] === 'commit'
     );
     expect(commitCall?.[0]).toBe('/fake/prod');
+  });
+
+  // ── Exit code checks ──────────────────────────────────────────────
+
+  it('returns error and skips commit when rm -rf fails', async () => {
+    mockRunInDir.mockImplementation((_cwd: string, cmd: string, args: string[]) => {
+      if (cmd === 'git' && args[0] === 'tag' && args[1] === '-l') return { stdout: 'v0.0.0', stderr: '', exitCode: 0 };
+      if (cmd === 'git' && args[0] === 'worktree' && args[1] === 'add') return { stdout: '', stderr: '', exitCode: 0 };
+      if (cmd === 'rm') return { stdout: '', stderr: 'Permission denied', exitCode: 1 };
+      if (cmd === 'git' && args[0] === 'worktree' && args[1] === 'remove') return { stdout: '', stderr: '', exitCode: 0 };
+      return { stdout: '', stderr: '', exitCode: 0 };
+    });
+
+    const result = await veloSync(config, { tag: 'v0.0.0' });
+    expect(result).toContain('ERROR');
+
+    const commitCalls = mockRunInDir.mock.calls.filter(
+      (c: unknown[]) => c[1] === 'git' && (c[2] as string[])[0] === 'commit'
+    );
+    expect(commitCalls.length).toBe(0);
+  });
+
+  it('returns error and skips commit when cp fails', async () => {
+    mockRunInDir.mockImplementation((_cwd: string, cmd: string, args: string[]) => {
+      if (cmd === 'git' && args[0] === 'tag' && args[1] === '-l') return { stdout: 'v0.0.0', stderr: '', exitCode: 0 };
+      if (cmd === 'git' && args[0] === 'worktree' && args[1] === 'add') return { stdout: '', stderr: '', exitCode: 0 };
+      if (cmd === 'rm') return { stdout: '', stderr: '', exitCode: 0 };
+      if (cmd === 'cp') return { stdout: '', stderr: 'No space left on device', exitCode: 1 };
+      if (cmd === 'git' && args[0] === 'worktree' && args[1] === 'remove') return { stdout: '', stderr: '', exitCode: 0 };
+      return { stdout: '', stderr: '', exitCode: 0 };
+    });
+
+    const result = await veloSync(config, { tag: 'v0.0.0' });
+    expect(result).toContain('ERROR');
+    expect(result).toContain('copy');
+
+    const commitCalls = mockRunInDir.mock.calls.filter(
+      (c: unknown[]) => c[1] === 'git' && (c[2] as string[])[0] === 'commit'
+    );
+    expect(commitCalls.length).toBe(0);
+  });
+
+  it('error identifies which cp item failed', async () => {
+    let cpCount = 0;
+    mockRunInDir.mockImplementation((_cwd: string, cmd: string, args: string[]) => {
+      if (cmd === 'git' && args[0] === 'tag' && args[1] === '-l') return { stdout: 'v0.0.0', stderr: '', exitCode: 0 };
+      if (cmd === 'git' && args[0] === 'worktree' && args[1] === 'add') return { stdout: '', stderr: '', exitCode: 0 };
+      if (cmd === 'rm') return { stdout: '', stderr: '', exitCode: 0 };
+      if (cmd === 'cp') {
+        cpCount++;
+        if (cpCount === 2) return { stdout: '', stderr: 'missing file', exitCode: 1 };
+        return { stdout: '', stderr: '', exitCode: 0 };
+      }
+      if (cmd === 'git' && args[0] === 'worktree' && args[1] === 'remove') return { stdout: '', stderr: '', exitCode: 0 };
+      return { stdout: '', stderr: '', exitCode: 0 };
+    });
+
+    const result = await veloSync(config, { tag: 'v0.0.0' });
+    expect(result).toContain('ERROR');
+    expect(result).toContain('tests/');
+  });
+
+  it('returns error when git add fails', async () => {
+    mockRunInDir.mockImplementation((_cwd: string, cmd: string, args: string[]) => {
+      if (cmd === 'git' && args[0] === 'tag' && args[1] === '-l') return { stdout: 'v0.0.0', stderr: '', exitCode: 0 };
+      if (cmd === 'git' && args[0] === 'worktree') return { stdout: '', stderr: '', exitCode: 0 };
+      if (cmd === 'rm') return { stdout: '', stderr: '', exitCode: 0 };
+      if (cmd === 'cp') return { stdout: '', stderr: '', exitCode: 0 };
+      if (cmd === 'git' && args[0] === 'add') return { stdout: '', stderr: 'fatal: not a git repository', exitCode: 128 };
+      return { stdout: '', stderr: '', exitCode: 0 };
+    });
+
+    const result = await veloSync(config, { tag: 'v0.0.0' });
+    expect(result).toContain('ERROR');
+    expect(result).toContain('stage');
+
+    const commitCalls = mockRunInDir.mock.calls.filter(
+      (c: unknown[]) => c[1] === 'git' && (c[2] as string[])[0] === 'commit'
+    );
+    expect(commitCalls.length).toBe(0);
+  });
+
+  // ── Relative worktree path ────────────────────────────────────────
+
+  it('uses relative worktree path instead of /tmp/', async () => {
+    setupSuccessFlow('v0.0.0');
+    await veloSync(config, { tag: 'v0.0.0' });
+
+    const wtAddCall = mockRunInDir.mock.calls.find(
+      (c: unknown[]) => c[1] === 'git' && (c[2] as string[])[0] === 'worktree' && (c[2] as string[])[1] === 'add'
+    );
+    const worktreePath = (wtAddCall?.[2] as string[])[3];
+    expect(worktreePath).not.toContain('/tmp/');
+    expect(worktreePath).toContain('.velo-sync-');
   });
 });

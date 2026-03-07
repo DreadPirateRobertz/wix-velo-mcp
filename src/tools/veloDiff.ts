@@ -1,14 +1,10 @@
 import { runInDir } from '../lib/exec.js';
+import { isValidTag } from '../lib/tags.js';
 import type { VeloConfig } from '../lib/config.js';
 import { join } from 'node:path';
 import { randomBytes } from 'node:crypto';
 
-/**
- * Validate that a string is a semver release tag (e.g. v1.2.3).
- */
-export function isValidTag(tag: string): boolean {
-  return /^v\d+\.\d+\.\d+$/.test(tag);
-}
+export { isValidTag };
 
 /**
  * Show what would change if the prod repo were synced to a given tag
