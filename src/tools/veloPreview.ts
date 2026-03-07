@@ -1,24 +1,58 @@
-import { runInDir } from '../lib/exec.js';
+import { spawnUntilMatch } from '../lib/exec.js';
 import type { VeloConfig } from '../lib/config.js';
 
+const URL_PATTERN = /https?:\/\/\S+/;
+const TIMEOUT_MS = 30_000;
+
+/** PID of the running dev server, if any. */
+let devServerPid: number | null = null;
+
 /**
- * Run `wix dev` from the prod repo to start a local preview.
- * Captures and returns the preview URL from stdout.
+ * Start `wix dev` in the prod repo and capture the preview URL from stdout.
+ * The dev server continues running in the background.
+ * Use veloPreviewStop to shut it down.
  */
 export async function veloPreview(config: VeloConfig): Promise<string> {
-  const result = await runInDir(config.prodRepo, 'npx', ['wix', 'dev']);
+  // Kill any existing dev server first
+  if (devServerPid !== null) {
+    try { process.kill(devServerPid, 'SIGTERM'); } catch { /* already dead */ }
+    devServerPid = null;
+  }
 
-  if (result.exitCode !== 0) {
-    const detail = result.stderr.trim() || 'preview failed with no error output';
+  const result = await spawnUntilMatch(
+    config.prodRepo,
+    'npx',
+    ['wix', 'dev'],
+    URL_PATTERN,
+    TIMEOUT_MS,
+  );
+
+  if (!result.match) {
+    const detail = result.stderr.trim() || 'No preview URL found in output';
     return `ERROR: ${detail}`;
   }
 
-  // Extract URL from output
-  const urlMatch = result.stdout.match(/https?:\/\/\S+/);
+  devServerPid = result.pid;
 
-  if (!urlMatch) {
-    return 'ERROR: No preview URL found in output.';
+  const pidInfo = devServerPid ? ` (PID: ${devServerPid})` : '';
+  return `Preview running at: ${result.match}${pidInfo}\n\nDev server is running in the background. Use velo_preview_stop to shut down.`;
+}
+
+/**
+ * Stop the running dev server, if any.
+ */
+export async function veloPreviewStop(): Promise<string> {
+  if (devServerPid === null) {
+    return 'No dev server is currently running.';
   }
 
-  return `Preview running at: ${urlMatch[0]}`;
+  const pid = devServerPid;
+  devServerPid = null;
+
+  try {
+    process.kill(pid, 'SIGTERM');
+    return `Dev server (PID ${pid}) stopped.`;
+  } catch {
+    return `Dev server (PID ${pid}) was already stopped.`;
+  }
 }

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { run, runInDir } from '../src/lib/exec.js';
+import { run, runInDir, spawnUntilMatch } from '../src/lib/exec.js';
 
 describe('run', () => {
   it('captures stdout from a command', async () => {
@@ -59,5 +59,53 @@ describe('runInDir', () => {
   it('captures stdout in specified directory', async () => {
     const result = await runInDir('/tmp', 'echo', ['from-tmp']);
     expect(result.stdout.trim()).toBe('from-tmp');
+  });
+});
+
+describe('spawnUntilMatch', () => {
+  it('resolves when stdout matches pattern', async () => {
+    const result = await spawnUntilMatch(
+      '/tmp',
+      'echo',
+      ['hello-match-test'],
+      /hello-match/,
+    );
+    expect(result.match).toBe('hello-match');
+    expect(result.stdout).toContain('hello-match-test');
+  });
+
+  it('returns empty match when process exits before pattern found', async () => {
+    const result = await spawnUntilMatch(
+      '/tmp',
+      'echo',
+      ['no-match-here'],
+      /will-never-match/,
+    );
+    expect(result.match).toBe('');
+    expect(result.pid).toBeNull();
+  });
+
+  it('returns empty match on timeout', async () => {
+    // sleep 10 will be killed after 200ms timeout
+    const result = await spawnUntilMatch(
+      '/tmp',
+      'sleep',
+      ['10'],
+      /never/,
+      200,
+    );
+    expect(result.match).toBe('');
+    expect(result.stderr).toContain('Timed out');
+  });
+
+  it('returns error for non-existent command', async () => {
+    const result = await spawnUntilMatch(
+      '/tmp',
+      'nonexistent-cmd-xyz-999',
+      [],
+      /anything/,
+    );
+    expect(result.match).toBe('');
+    expect(result.stderr.length).toBeGreaterThan(0);
   });
 });
