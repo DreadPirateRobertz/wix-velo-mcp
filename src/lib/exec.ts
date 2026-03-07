@@ -103,14 +103,18 @@ export async function run(cmd: string, args: string[]): Promise<ExecResult> {
 
 /**
  * Run a command in a specific directory.
+ * @param timeoutMs - Optional timeout in milliseconds. Process is killed if exceeded.
  */
 export async function runInDir(
   cwd: string,
   cmd: string,
   args: string[],
+  timeoutMs?: number,
 ): Promise<ExecResult> {
   try {
-    const result = await execa(cmd, args, { cwd, reject: false });
+    const opts: Record<string, unknown> = { cwd, reject: false };
+    if (timeoutMs) opts.timeout = timeoutMs;
+    const result = await execa(cmd, args, opts);
     const failed = result.failed || result.exitCode == null;
     const stderr = result.stderr || (failed ? (result.message ?? '') : '');
     return {
