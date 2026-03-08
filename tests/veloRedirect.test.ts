@@ -104,6 +104,23 @@ describe('listRedirects', () => {
     expect(mockFetch.mock.calls[0][1].method).toBe('GET');
   });
 
+  it('sends wix-account-id header when configured', async () => {
+    const configWithAccount: VeloConfig = {
+      ...config,
+      wixAccountId: 'test-account-id',
+    };
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      text: async () => JSON.stringify({ redirects: [] }),
+    });
+
+    await listRedirects(configWithAccount);
+
+    const headers = mockFetch.mock.calls[0][1].headers;
+    expect(headers['wix-account-id']).toBe('test-account-id');
+  });
+
   it('reports empty list gracefully', async () => {
     mockFetch.mockResolvedValueOnce({
       ok: true,
@@ -314,6 +331,26 @@ describe('setRedirect', () => {
     expect(headers['Authorization']).toBe('test-api-key');
     expect(headers['wix-site-id']).toBe('test-site-id');
     expect(headers['Content-Type']).toBe('application/json');
+  });
+
+  it('sends wix-account-id header when configured', async () => {
+    const configWithAccount: VeloConfig = {
+      ...config,
+      wixAccountId: 'test-account-id',
+    };
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      text: async () =>
+        JSON.stringify({
+          redirect: { id: 'id', oldUrl: '/a', newUrl: '/b' },
+        }),
+    });
+
+    await setRedirect(configWithAccount, { oldUrl: '/a', newUrl: '/b' });
+
+    const headers = mockFetch.mock.calls[0][1].headers;
+    expect(headers['wix-account-id']).toBe('test-account-id');
   });
 
   // ── Error handling ─────────────────────────────────────────────

@@ -1,7 +1,7 @@
 import type { VeloConfig } from '../lib/config.js';
+import { validateWixApiConfig, wixApiFetch } from '../lib/wixApi.js';
 
-const REDIRECTS_API_BASE =
-  'https://www.wixapis.com/url-redirects/v1/redirects';
+const REDIRECTS_API_PATH = '/url-redirects/v1/redirects';
 
 interface RedirectEntry {
   id: string;
@@ -18,46 +18,24 @@ interface SetRedirectInput {
  * List all URL redirects (301) configured on the Wix site.
  */
 export async function listRedirects(config: VeloConfig): Promise<string> {
-  if (!config.wixApiKey) {
-    return 'ERROR: WIX_API_KEY environment variable is required for redirect tools';
+  const configErr = validateWixApiConfig(config);
+  if (configErr) return configErr;
+
+  const result = await wixApiFetch(config, 'GET', REDIRECTS_API_PATH);
+
+  if (!result.ok) {
+    return `ERROR: Failed to list redirects (${result.status}): ${JSON.stringify(result.body)}`;
   }
-  if (!config.wixSiteId) {
-    return 'ERROR: WIX_SITE_ID environment variable is required for redirect tools';
+
+  const redirects = (result.body.redirects ?? []) as RedirectEntry[];
+  if (redirects.length === 0) {
+    return 'No redirects configured on this site.';
   }
 
-  const headers: Record<string, string> = {
-    Authorization: config.wixApiKey,
-    'wix-site-id': config.wixSiteId,
-    'Content-Type': 'application/json',
-  };
-
-  try {
-    const res = await fetch(REDIRECTS_API_BASE, { method: 'GET', headers });
-    if (!res.ok) {
-      const text = await res.text();
-      return `ERROR: Failed to list redirects (${res.status}): ${text}`;
-    }
-
-    const text = await res.text();
-    let parsed: { redirects?: RedirectEntry[] };
-    try {
-      parsed = JSON.parse(text) as { redirects?: RedirectEntry[] };
-    } catch {
-      parsed = { redirects: [] };
-    }
-
-    const redirects = parsed.redirects ?? [];
-    if (redirects.length === 0) {
-      return 'No redirects configured on this site.';
-    }
-
-    const lines = redirects.map(
-      (r) => `• ${r.oldUrl} → ${r.newUrl} (id: ${r.id})`,
-    );
-    return `${redirects.length} redirect(s):\n${lines.join('\n')}`;
-  } catch (err) {
-    return `ERROR: Failed to list redirects: ${err instanceof Error ? err.message : String(err)}`;
-  }
+  const lines = redirects.map(
+    (r) => `• ${r.oldUrl} → ${r.newUrl} (id: ${r.id})`,
+  );
+  return `${redirects.length} redirect(s):\n${lines.join('\n')}`;
 }
 
 /**
@@ -67,12 +45,8 @@ export async function setRedirect(
   config: VeloConfig,
   input: SetRedirectInput,
 ): Promise<string> {
-  if (!config.wixApiKey) {
-    return 'ERROR: WIX_API_KEY environment variable is required for redirect tools';
-  }
-  if (!config.wixSiteId) {
-    return 'ERROR: WIX_SITE_ID environment variable is required for redirect tools';
-  }
+  const configErr = validateWixApiConfig(config);
+  if (configErr) return configErr;
 
   if (!input.oldUrl.trim()) {
     return 'ERROR: oldUrl must not be empty';
@@ -87,37 +61,15 @@ export async function setRedirect(
     return 'ERROR: newUrl must start with / or http';
   }
 
-  const headers: Record<string, string> = {
-    Authorization: config.wixApiKey,
-    'wix-site-id': config.wixSiteId,
-    'Content-Type': 'application/json',
-  };
+  const result = await wixApiFetch(config, 'POST', REDIRECTS_API_PATH, {
+    redirect: { oldUrl: input.oldUrl, newUrl: input.newUrl },
+  });
 
-  try {
-    const res = await fetch(REDIRECTS_API_BASE, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({
-        redirect: { oldUrl: input.oldUrl, newUrl: input.newUrl },
-      }),
-    });
-
-    if (!res.ok) {
-      const text = await res.text();
-      return `ERROR: Failed to create redirect (${res.status}): ${text}`;
-    }
-
-    const text = await res.text();
-    let parsed: { redirect?: { id?: string } };
-    try {
-      parsed = JSON.parse(text) as { redirect?: { id?: string } };
-    } catch {
-      parsed = {};
-    }
-
-    const id = parsed.redirect?.id ?? 'unknown';
-    return `Created redirect: ${input.oldUrl} → ${input.newUrl} (id: ${id})`;
-  } catch (err) {
-    return `ERROR: Failed to create redirect: ${err instanceof Error ? err.message : String(err)}`;
+  if (!result.ok) {
+    return `ERROR: Failed to create redirect (${result.status}): ${JSON.stringify(result.body)}`;
   }
+
+  const redirect = result.body.redirect as { id?: string } | undefined;
+  const id = redirect?.id ?? 'unknown';
+  return `Created redirect: ${input.oldUrl} → ${input.newUrl} (id: ${id})`;
 }
