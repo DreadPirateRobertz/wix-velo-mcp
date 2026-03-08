@@ -65,8 +65,8 @@ Two environment variables are required:
 
 | Variable | Description | Example |
 |----------|-------------|---------|
-| `VELO_DEV_REPO` | Absolute path to the development repo (carolina-futons) | `/Users/hal/gt/cfutons/refinery/rig` |
-| `VELO_PROD_REPO` | Absolute path to the production repo (carolina_futons_velO) | `/Users/hal/gt/cfutons/carolina_futons_velO` |
+| `VELO_DEV_REPO` | Absolute path to the development repo (carolina-futons) | `/path/to/carolina-futons` |
+| `VELO_PROD_REPO` | Absolute path to the production repo (carolina_futons_velO) | `/path/to/carolina_futons_velO` |
 
 The server will throw on startup if either is missing.
 
@@ -79,10 +79,10 @@ Add to your MCP settings (project-level `.claude/settings.local.json` or global 
   "mcpServers": {
     "wix-velo": {
       "command": "node",
-      "args": ["/Users/hal/gt/cfutons/wix-velo-mcp/dist/index.js"],
+      "args": ["/path/to/wix-velo-mcp/dist/index.js"],
       "env": {
-        "VELO_DEV_REPO": "/Users/hal/gt/cfutons/refinery/rig",
-        "VELO_PROD_REPO": "/Users/hal/gt/cfutons/carolina_futons_velO"
+        "VELO_DEV_REPO": "/path/to/carolina-futons",
+        "VELO_PROD_REPO": "/path/to/carolina_futons_velO"
       }
     }
   }
