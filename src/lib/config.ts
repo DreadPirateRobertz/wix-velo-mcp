@@ -3,8 +3,10 @@ export interface VeloConfig {
   prodRepo: string;
   /** Wix REST API key — required for secrets and CMS tools */
   wixApiKey?: string;
-  /** Wix site ID — required for secrets and CMS tools */
+  /** Wix site ID (metaSiteId) — required for secrets and CMS tools */
   wixSiteId?: string;
+  /** Wix account ID — required for account-level API access */
+  wixAccountId?: string;
 }
 
 /**
@@ -24,6 +26,7 @@ export function getConfig(): VeloConfig {
 
   const wixApiKey = (process.env.WIX_API_KEY || '').trim() || undefined;
   const wixSiteId = (process.env.WIX_SITE_ID || '').trim() || undefined;
+  const wixAccountId = (process.env.WIX_ACCOUNT_ID || '').trim() || undefined;
 
-  return { devRepo, prodRepo, wixApiKey, wixSiteId };
+  return { devRepo, prodRepo, wixApiKey, wixSiteId, wixAccountId };
 }
