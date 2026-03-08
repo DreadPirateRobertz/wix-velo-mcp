@@ -20,6 +20,10 @@ import { veloPageList } from './tools/veloPageList.js';
 import { veloCmsCreate } from './tools/veloCmsCreate.js';
 import { veloCmsRead } from './tools/veloCmsRead.js';
 import { veloCmsUpdate } from './tools/veloCmsUpdate.js';
+import { veloDataItemQuery } from './tools/veloDataItemQuery.js';
+import { veloDataItemList } from './tools/veloDataItemList.js';
+import { veloDataItemInsert } from './tools/veloDataItemInsert.js';
+import { veloDataItemUpdate } from './tools/veloDataItemUpdate.js';
 
 const server = new McpServer({
   name: 'wix-velo-mcp',
@@ -362,6 +366,85 @@ server.registerTool(
   },
   async ({ collectionId, displayName, fields, permissions }) => {
     const result = await veloCmsUpdate(config, { collectionId, displayName, fields, permissions });
+    return { content: [{ type: 'text' as const, text: result }] };
+  },
+);
+
+// ── velo_data_item_query ────────────────────────────────────────────
+
+server.registerTool(
+  'velo_data_item_query',
+  {
+    description:
+      'Query data items from a CMS collection with optional filter, sort, and paging. Use Wix query language for filters (e.g. { "price": { "$gt": 100 } }). Requires WIX_API_KEY and WIX_SITE_ID env vars.',
+    inputSchema: z.object({
+      dataCollectionId: z.string().describe('Collection ID to query (e.g. "Products", "Reviews")'),
+      filter: z.record(z.unknown()).optional().describe('Wix query language filter object (e.g. { "status": "active" })'),
+      sort: z.array(z.object({
+        fieldName: z.string().describe('Field to sort by'),
+        order: z.string().describe('Sort order: ASC or DESC'),
+      })).optional().describe('Sort clauses'),
+      limit: z.number().optional().describe('Max items to return (1-100, default 50)'),
+      offset: z.number().optional().describe('Number of items to skip (for pagination)'),
+    }),
+  },
+  async ({ dataCollectionId, filter, sort, limit, offset }) => {
+    const result = await veloDataItemQuery(config, { dataCollectionId, filter, sort, limit, offset });
+    return { content: [{ type: 'text' as const, text: result }] };
+  },
+);
+
+// ── velo_data_item_list ─────────────────────────────────────────────
+
+server.registerTool(
+  'velo_data_item_list',
+  {
+    description:
+      'List data items from a CMS collection (simple listing, no filter/sort). For filtered queries use velo_data_item_query. Requires WIX_API_KEY and WIX_SITE_ID env vars.',
+    inputSchema: z.object({
+      dataCollectionId: z.string().describe('Collection ID to list items from'),
+      limit: z.number().optional().describe('Max items to return (1-100, default 50)'),
+    }),
+  },
+  async ({ dataCollectionId, limit }) => {
+    const result = await veloDataItemList(config, { dataCollectionId, limit });
+    return { content: [{ type: 'text' as const, text: result }] };
+  },
+);
+
+// ── velo_data_item_insert ───────────────────────────────────────────
+
+server.registerTool(
+  'velo_data_item_insert',
+  {
+    description:
+      'Insert a data item into a CMS collection. Provide field values as key-value pairs in data. Requires WIX_API_KEY and WIX_SITE_ID env vars.',
+    inputSchema: z.object({
+      dataCollectionId: z.string().describe('Collection ID to insert into'),
+      data: z.record(z.unknown()).describe('Item data as key-value pairs (e.g. { "name": "Futon", "price": 299 })'),
+    }),
+  },
+  async ({ dataCollectionId, data }) => {
+    const result = await veloDataItemInsert(config, { dataCollectionId, data });
+    return { content: [{ type: 'text' as const, text: result }] };
+  },
+);
+
+// ── velo_data_item_update ───────────────────────────────────────────
+
+server.registerTool(
+  'velo_data_item_update',
+  {
+    description:
+      'Update a data item in a CMS collection (full replacement). All fields in data replace existing item fields. Requires WIX_API_KEY and WIX_SITE_ID env vars.',
+    inputSchema: z.object({
+      dataCollectionId: z.string().describe('Collection ID containing the item'),
+      itemId: z.string().describe('ID of the item to update'),
+      data: z.record(z.unknown()).describe('Updated item data (replaces all existing fields)'),
+    }),
+  },
+  async ({ dataCollectionId, itemId, data }) => {
+    const result = await veloDataItemUpdate(config, { dataCollectionId, itemId, data });
     return { content: [{ type: 'text' as const, text: result }] };
   },
 );
