@@ -15,6 +15,8 @@ import {
   listEmailTemplates,
   createEmailTemplate,
 } from './tools/veloEmailTemplate.js';
+import { listRedirects, setRedirect } from './tools/veloRedirect.js';
+import { veloPageList } from './tools/veloPageList.js';
 
 const server = new McpServer({
   name: 'wix-velo-mcp',
@@ -233,6 +235,60 @@ server.registerTool(
       subject,
       body,
     });
+    return { content: [{ type: 'text' as const, text: result }] };
+  },
+);
+
+// ── velo_redirect_list ─────────────────────────────────────────────
+
+server.registerTool(
+  'velo_redirect_list',
+  {
+    description:
+      'List URL redirects (301) configured on the Wix site. Returns redirect IDs, old URLs, and new URLs. Requires WIX_API_KEY and WIX_SITE_ID env vars.',
+    inputSchema: z.object({}),
+  },
+  async () => {
+    const result = await listRedirects(config);
+    return { content: [{ type: 'text' as const, text: result }] };
+  },
+);
+
+// ── velo_redirect_set ──────────────────────────────────────────────
+
+server.registerTool(
+  'velo_redirect_set',
+  {
+    description:
+      'Create a URL redirect (301) on the Wix site. Maps an old URL path to a new URL path or external URL. Important for SEO migration. Requires WIX_API_KEY and WIX_SITE_ID env vars.',
+    inputSchema: z.object({
+      oldUrl: z
+        .string()
+        .describe('The old URL path to redirect from (must start with /)'),
+      newUrl: z
+        .string()
+        .describe(
+          'The new URL path or full URL to redirect to (must start with / or http)',
+        ),
+    }),
+  },
+  async ({ oldUrl, newUrl }) => {
+    const result = await setRedirect(config, { oldUrl, newUrl });
+    return { content: [{ type: 'text' as const, text: result }] };
+  },
+);
+
+// ── velo_page_list ──────────────────────────────────────────────────
+
+server.registerTool(
+  'velo_page_list',
+  {
+    description:
+      'List pages on the Wix site. Returns page IDs, titles, URLs, and published status. Useful for verifying hookup deployment. Requires WIX_API_KEY and WIX_SITE_ID env vars.',
+    inputSchema: z.object({}),
+  },
+  async () => {
+    const result = await veloPageList(config);
     return { content: [{ type: 'text' as const, text: result }] };
   },
 );
