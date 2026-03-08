@@ -42,6 +42,17 @@ describe('veloDataItemInsert', () => {
     expect(result).toContain('dataCollectionId');
   });
 
+  it('rejects dataCollectionId with path traversal characters', async () => {
+    for (const bad of ['../secret', 'Col/evil', 'a..b']) {
+      const result = await veloDataItemInsert(config, {
+        dataCollectionId: bad,
+        data: { name: 'Test' },
+      });
+      expect(result).toContain('ERROR');
+      expect(mockWixApiFetch).not.toHaveBeenCalled();
+    }
+  });
+
   it('returns ERROR when data is empty object', async () => {
     const result = await veloDataItemInsert(config, {
       dataCollectionId: 'Products',

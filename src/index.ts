@@ -382,7 +382,7 @@ server.registerTool(
       filter: z.record(z.unknown()).optional().describe('Wix query language filter object (e.g. { "status": "active" })'),
       sort: z.array(z.object({
         fieldName: z.string().describe('Field to sort by'),
-        order: z.string().describe('Sort order: ASC or DESC'),
+        order: z.enum(['ASC', 'DESC']).describe('Sort order: ASC or DESC'),
       })).optional().describe('Sort clauses'),
       limit: z.number().optional().describe('Max items to return (1-100, default 50)'),
       offset: z.number().optional().describe('Number of items to skip (for pagination)'),

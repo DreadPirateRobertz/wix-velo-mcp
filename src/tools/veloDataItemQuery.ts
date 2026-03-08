@@ -2,6 +2,8 @@ import type { VeloConfig } from '../lib/config.js';
 import { validateWixApiConfig, wixApiFetch } from '../lib/wixApi.js';
 
 const ITEMS_QUERY_PATH = '/wix-data/v2/items/query';
+const SAFE_ID_RE = /^[a-zA-Z0-9_-]+$/;
+const VALID_SORT_ORDERS = ['ASC', 'DESC'] as const;
 
 interface SortClause {
   fieldName: string;
@@ -29,6 +31,18 @@ export async function veloDataItemQuery(
 
   if (!input.dataCollectionId) {
     return 'ERROR: dataCollectionId is required and must be non-empty';
+  }
+
+  if (!SAFE_ID_RE.test(input.dataCollectionId)) {
+    return 'ERROR: dataCollectionId contains invalid characters (only alphanumeric, hyphens, underscores allowed)';
+  }
+
+  if (input.sort) {
+    for (const clause of input.sort) {
+      if (!VALID_SORT_ORDERS.includes(clause.order as typeof VALID_SORT_ORDERS[number])) {
+        return `ERROR: sort order must be ASC or DESC, got "${clause.order}"`;
+      }
+    }
   }
 
   const limit = Math.min(Math.max(input.limit ?? 50, 1), 100);

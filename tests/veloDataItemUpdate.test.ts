@@ -44,6 +44,18 @@ describe('veloDataItemUpdate', () => {
     expect(result).toContain('dataCollectionId');
   });
 
+  it('rejects dataCollectionId with path traversal characters', async () => {
+    for (const bad of ['../etc', 'Col/evil', 'a..b']) {
+      const result = await veloDataItemUpdate(config, {
+        dataCollectionId: bad,
+        itemId: 'abc',
+        data: { name: 'Updated' },
+      });
+      expect(result).toContain('ERROR');
+      expect(mockWixApiFetch).not.toHaveBeenCalled();
+    }
+  });
+
   it('returns ERROR when itemId is empty', async () => {
     const result = await veloDataItemUpdate(config, {
       dataCollectionId: 'Products',
@@ -52,6 +64,18 @@ describe('veloDataItemUpdate', () => {
     });
     expect(result).toContain('ERROR');
     expect(result).toContain('itemId');
+  });
+
+  it('rejects itemId with path traversal characters', async () => {
+    for (const bad of ['../etc', 'id/evil', 'a..b']) {
+      const result = await veloDataItemUpdate(config, {
+        dataCollectionId: 'Products',
+        itemId: bad,
+        data: { name: 'Updated' },
+      });
+      expect(result).toContain('ERROR');
+      expect(mockWixApiFetch).not.toHaveBeenCalled();
+    }
   });
 
   it('returns ERROR when data is empty', async () => {

@@ -37,6 +37,29 @@ describe('veloDataItemQuery', () => {
     expect(mockWixApiFetch).not.toHaveBeenCalled();
   });
 
+  it('rejects dataCollectionId with path traversal characters', async () => {
+    for (const bad of ['../etc', 'Products/evil', 'a..b', 'foo bar']) {
+      const result = await veloDataItemQuery(config, { dataCollectionId: bad });
+      expect(result).toContain('ERROR');
+      expect(mockWixApiFetch).not.toHaveBeenCalled();
+    }
+  });
+
+  it('rejects invalid sort order values', async () => {
+    mockWixApiFetch.mockResolvedValue({
+      ok: true, status: 200,
+      body: { dataItems: [], pagingMetadata: { count: 0, total: 0 } },
+    });
+
+    const result = await veloDataItemQuery(config, {
+      dataCollectionId: 'Products',
+      sort: [{ fieldName: 'price', order: 'INVALID' }],
+    });
+    expect(result).toContain('ERROR');
+    expect(result).toContain('ASC');
+    expect(mockWixApiFetch).not.toHaveBeenCalled();
+  });
+
   it('queries items with default paging (limit 50)', async () => {
     mockWixApiFetch.mockResolvedValue({
       ok: true, status: 200,

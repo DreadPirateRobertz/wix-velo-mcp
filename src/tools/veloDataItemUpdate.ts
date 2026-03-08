@@ -2,6 +2,7 @@ import type { VeloConfig } from '../lib/config.js';
 import { validateWixApiConfig, wixApiFetch } from '../lib/wixApi.js';
 
 const ITEMS_PATH = '/wix-data/v2/items';
+const SAFE_ID_RE = /^[a-zA-Z0-9_-]+$/;
 
 interface DataItemUpdateInput {
   dataCollectionId: string;
@@ -24,8 +25,16 @@ export async function veloDataItemUpdate(
     return 'ERROR: dataCollectionId is required and must be non-empty';
   }
 
+  if (!SAFE_ID_RE.test(input.dataCollectionId)) {
+    return 'ERROR: dataCollectionId contains invalid characters (only alphanumeric, hyphens, underscores allowed)';
+  }
+
   if (!input.itemId) {
     return 'ERROR: itemId is required and must be non-empty';
+  }
+
+  if (!SAFE_ID_RE.test(input.itemId)) {
+    return 'ERROR: itemId contains invalid characters (only alphanumeric, hyphens, underscores allowed)';
   }
 
   if (!input.data || Object.keys(input.data).length === 0) {

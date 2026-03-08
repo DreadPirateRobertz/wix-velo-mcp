@@ -36,6 +36,14 @@ describe('veloDataItemList', () => {
     expect(result).toContain('dataCollectionId');
   });
 
+  it('rejects dataCollectionId with path traversal characters', async () => {
+    for (const bad of ['../secret', 'Col/evil', 'a..b']) {
+      const result = await veloDataItemList(config, { dataCollectionId: bad });
+      expect(result).toContain('ERROR');
+      expect(mockWixApiFetch).not.toHaveBeenCalled();
+    }
+  });
+
   it('lists items with default paging', async () => {
     mockWixApiFetch.mockResolvedValue({
       ok: true, status: 200,
