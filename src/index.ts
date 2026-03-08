@@ -11,6 +11,10 @@ import { veloPreview, veloPreviewStop } from './tools/veloPreview.js';
 import { veloPublish } from './tools/veloPublish.js';
 import { veloCatalogImport } from './tools/veloCatalogImport.js';
 import { veloSecretsSet } from './tools/veloSecretsSet.js';
+import {
+  listEmailTemplates,
+  createEmailTemplate,
+} from './tools/veloEmailTemplate.js';
 
 const server = new McpServer({
   name: 'wix-velo-mcp',
@@ -185,6 +189,50 @@ server.registerTool(
   },
   async ({ name, value, description }) => {
     const result = await veloSecretsSet(config, { name, value, description });
+    return { content: [{ type: 'text' as const, text: result }] };
+  },
+);
+
+// ── velo_email_template_list ─────────────────────────────────────────
+
+server.registerTool(
+  'velo_email_template_list',
+  {
+    description:
+      'List triggered email templates configured on the Wix site. Returns template IDs, names, statuses, and variable names.',
+    inputSchema: z.object({}),
+  },
+  async () => {
+    const result = await listEmailTemplates(config);
+    return { content: [{ type: 'text' as const, text: result }] };
+  },
+);
+
+// ── velo_email_template_create ──────────────────────────────────────
+
+server.registerTool(
+  'velo_email_template_create',
+  {
+    description:
+      'Create a new triggered email template on the Wix site. Supports {{variable}} placeholders in subject and body.',
+    inputSchema: z.object({
+      displayName: z
+        .string()
+        .describe('Human-readable template name'),
+      subject: z
+        .string()
+        .describe('Email subject line. Supports {{variable}} placeholders.'),
+      body: z
+        .string()
+        .describe('Email HTML body. Supports {{variable}} placeholders.'),
+    }),
+  },
+  async ({ displayName, subject, body }) => {
+    const result = await createEmailTemplate(config, {
+      displayName,
+      subject,
+      body,
+    });
     return { content: [{ type: 'text' as const, text: result }] };
   },
 );
