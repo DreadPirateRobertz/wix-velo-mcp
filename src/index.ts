@@ -9,6 +9,7 @@ import { veloSync } from './tools/veloSync.js';
 import { veloDiff } from './tools/veloDiff.js';
 import { veloPreview, veloPreviewStop } from './tools/veloPreview.js';
 import { veloPublish } from './tools/veloPublish.js';
+import { veloCatalogImport } from './tools/veloCatalogImport.js';
 
 const server = new McpServer({
   name: 'wix-velo-mcp',
@@ -107,6 +108,60 @@ server.registerTool(
   },
   async () => {
     const result = await veloPublish(config);
+    return { content: [{ type: 'text' as const, text: result }] };
+  },
+);
+
+// ── velo_catalog_import ──────────────────────────────────────────────
+
+server.registerTool(
+  'velo_catalog_import',
+  {
+    description:
+      'Import products from catalog-MASTER.json to Wix Stores via REST API. Requires WIX_API_KEY and WIX_SITE_ID env vars.',
+    inputSchema: z.object({
+      catalogPath: z
+        .string()
+        .describe('Absolute path to catalog-MASTER.json file'),
+      dryRun: z
+        .boolean()
+        .optional()
+        .describe('If true, list products without calling API (default: false)'),
+      category: z
+        .string()
+        .optional()
+        .describe('Filter to a specific category slug (e.g. "futon-frames")'),
+    }),
+  },
+  async ({ catalogPath, dryRun, category }) => {
+    const wixApiKey = (process.env.WIX_API_KEY || '').trim();
+    const wixSiteId = (process.env.WIX_SITE_ID || '').trim();
+
+    if (!dryRun && !wixApiKey) {
+      return {
+        content: [
+          {
+            type: 'text' as const,
+            text: 'ERROR: WIX_API_KEY environment variable is required for catalog import',
+          },
+        ],
+      };
+    }
+    if (!dryRun && !wixSiteId) {
+      return {
+        content: [
+          {
+            type: 'text' as const,
+            text: 'ERROR: WIX_SITE_ID environment variable is required for catalog import',
+          },
+        ],
+      };
+    }
+
+    const result = await veloCatalogImport(
+      { apiKey: wixApiKey, siteId: wixSiteId },
+      { catalogPath, dryRun, category },
+    );
     return { content: [{ type: 'text' as const, text: result }] };
   },
 );
