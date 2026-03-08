@@ -1,6 +1,10 @@
 export interface VeloConfig {
   devRepo: string;
   prodRepo: string;
+  /** Wix REST API key — required for secrets and CMS tools */
+  wixApiKey?: string;
+  /** Wix site ID — required for secrets and CMS tools */
+  wixSiteId?: string;
 }
 
 /**
@@ -18,5 +22,8 @@ export function getConfig(): VeloConfig {
     throw new Error('VELO_PROD_REPO environment variable is required');
   }
 
-  return { devRepo, prodRepo };
+  const wixApiKey = (process.env.WIX_API_KEY || '').trim() || undefined;
+  const wixSiteId = (process.env.WIX_SITE_ID || '').trim() || undefined;
+
+  return { devRepo, prodRepo, wixApiKey, wixSiteId };
 }
