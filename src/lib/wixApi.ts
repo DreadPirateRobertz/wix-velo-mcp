@@ -40,6 +40,9 @@ export async function wixApiFetch(
     'wix-site-id': config.wixSiteId!,
     'Content-Type': 'application/json',
   };
+  if (config.wixAccountId) {
+    headers['wix-account-id'] = config.wixAccountId;
+  }
 
   try {
     const response = await fetch(url, {
