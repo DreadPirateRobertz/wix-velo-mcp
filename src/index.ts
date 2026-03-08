@@ -10,6 +10,7 @@ import { veloDiff } from './tools/veloDiff.js';
 import { veloPreview, veloPreviewStop } from './tools/veloPreview.js';
 import { veloPublish } from './tools/veloPublish.js';
 import { veloCatalogImport } from './tools/veloCatalogImport.js';
+import { veloSecretsSet } from './tools/veloSecretsSet.js';
 
 const server = new McpServer({
   name: 'wix-velo-mcp',
@@ -162,6 +163,28 @@ server.registerTool(
       { apiKey: wixApiKey, siteId: wixSiteId },
       { catalogPath, dryRun, category },
     );
+    return { content: [{ type: 'text' as const, text: result }] };
+  },
+);
+
+// ── velo_secrets_set ─────────────────────────────────────────────────
+
+server.registerTool(
+  'velo_secrets_set',
+  {
+    description:
+      'Create or update a secret in Wix Secrets Manager. If the secret name already exists, it is updated; otherwise a new secret is created.',
+    inputSchema: z.object({
+      name: z.string().describe('Secret name (e.g. UPS_API_KEY, STRIPE_SECRET)'),
+      value: z.string().describe('Secret value'),
+      description: z
+        .string()
+        .optional()
+        .describe('Optional description for the secret'),
+    }),
+  },
+  async ({ name, value, description }) => {
+    const result = await veloSecretsSet(config, { name, value, description });
     return { content: [{ type: 'text' as const, text: result }] };
   },
 );
