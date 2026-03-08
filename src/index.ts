@@ -15,8 +15,10 @@ import {
   listEmailTemplates,
   createEmailTemplate,
 } from './tools/veloEmailTemplate.js';
-import { listRedirects, setRedirect } from './tools/veloRedirect.js';
 import { veloPageList } from './tools/veloPageList.js';
+import { veloCmsCreate } from './tools/veloCmsCreate.js';
+import { veloCmsRead } from './tools/veloCmsRead.js';
+import { veloCmsUpdate } from './tools/veloCmsUpdate.js';
 
 const server = new McpServer({
   name: 'wix-velo-mcp',
@@ -239,45 +241,6 @@ server.registerTool(
   },
 );
 
-// ── velo_redirect_list ─────────────────────────────────────────────
-
-server.registerTool(
-  'velo_redirect_list',
-  {
-    description:
-      'List URL redirects (301) configured on the Wix site. Returns redirect IDs, old URLs, and new URLs. Requires WIX_API_KEY and WIX_SITE_ID env vars.',
-    inputSchema: z.object({}),
-  },
-  async () => {
-    const result = await listRedirects(config);
-    return { content: [{ type: 'text' as const, text: result }] };
-  },
-);
-
-// ── velo_redirect_set ──────────────────────────────────────────────
-
-server.registerTool(
-  'velo_redirect_set',
-  {
-    description:
-      'Create a URL redirect (301) on the Wix site. Maps an old URL path to a new URL path or external URL. Important for SEO migration. Requires WIX_API_KEY and WIX_SITE_ID env vars.',
-    inputSchema: z.object({
-      oldUrl: z
-        .string()
-        .describe('The old URL path to redirect from (must start with /)'),
-      newUrl: z
-        .string()
-        .describe(
-          'The new URL path or full URL to redirect to (must start with / or http)',
-        ),
-    }),
-  },
-  async ({ oldUrl, newUrl }) => {
-    const result = await setRedirect(config, { oldUrl, newUrl });
-    return { content: [{ type: 'text' as const, text: result }] };
-  },
-);
-
 // ── velo_page_list ──────────────────────────────────────────────────
 
 server.registerTool(
@@ -289,6 +252,76 @@ server.registerTool(
   },
   async () => {
     const result = await veloPageList(config);
+    return { content: [{ type: 'text' as const, text: result }] };
+  },
+);
+
+// ── velo_cms_create ─────────────────────────────────────────────────
+
+const fieldSchema = z.object({
+  key: z.string().describe('Field key (e.g. "productName")'),
+  displayName: z.string().describe('Human-readable field name'),
+  type: z.string().describe('Field type: TEXT, NUMBER, BOOLEAN, DATE, IMAGE, RICH_TEXT, URL, REFERENCE, MULTI_REFERENCE'),
+});
+
+const permissionsSchema = z.object({
+  insert: z.string().optional().describe('Who can insert: ADMIN, MEMBER, ANYONE'),
+  update: z.string().optional().describe('Who can update: ADMIN, MEMBER, ANYONE'),
+  remove: z.string().optional().describe('Who can remove: ADMIN, MEMBER, ANYONE'),
+  read: z.string().optional().describe('Who can read: ADMIN, MEMBER, ANYONE'),
+});
+
+server.registerTool(
+  'velo_cms_create',
+  {
+    description:
+      'Create a new CMS data collection on the Wix site. Requires WIX_API_KEY and WIX_SITE_ID env vars.',
+    inputSchema: z.object({
+      collectionId: z.string().describe('Collection ID (e.g. "Products", "BlogPosts")'),
+      displayName: z.string().describe('Human-readable collection name'),
+      fields: z.array(fieldSchema).optional().describe('Initial fields to add to the collection'),
+      permissions: permissionsSchema.optional().describe('Collection-level permissions'),
+    }),
+  },
+  async ({ collectionId, displayName, fields, permissions }) => {
+    const result = await veloCmsCreate(config, { collectionId, displayName, fields, permissions });
+    return { content: [{ type: 'text' as const, text: result }] };
+  },
+);
+
+// ── velo_cms_read ──────────────────────────────────────────────────
+
+server.registerTool(
+  'velo_cms_read',
+  {
+    description:
+      'Read CMS collection schema (fields, permissions) or list all collections. Requires WIX_API_KEY and WIX_SITE_ID env vars.',
+    inputSchema: z.object({
+      collectionId: z.string().optional().describe('Collection ID to read. Omit to list all collections.'),
+    }),
+  },
+  async ({ collectionId }) => {
+    const result = await veloCmsRead(config, { collectionId });
+    return { content: [{ type: 'text' as const, text: result }] };
+  },
+);
+
+// ── velo_cms_update ─────────────────────────────────────────────────
+
+server.registerTool(
+  'velo_cms_update',
+  {
+    description:
+      'Update a CMS collection: rename, add/modify fields, or change permissions. Requires WIX_API_KEY and WIX_SITE_ID env vars.',
+    inputSchema: z.object({
+      collectionId: z.string().describe('Collection ID to update'),
+      displayName: z.string().optional().describe('New display name for the collection'),
+      fields: z.array(fieldSchema).optional().describe('Fields to add or update'),
+      permissions: permissionsSchema.optional().describe('Updated collection permissions'),
+    }),
+  },
+  async ({ collectionId, displayName, fields, permissions }) => {
+    const result = await veloCmsUpdate(config, { collectionId, displayName, fields, permissions });
     return { content: [{ type: 'text' as const, text: result }] };
   },
 );
