@@ -152,6 +152,28 @@ describe('veloDataItemQuery', () => {
     );
   });
 
+
+  it('clamps negative offset to 0', async () => {
+    mockWixApiFetch.mockResolvedValue({
+      ok: true, status: 200,
+      body: { dataItems: [], pagingMetadata: { count: 0, total: 0 } },
+    });
+
+    await veloDataItemQuery(config, {
+      dataCollectionId: 'Products',
+      offset: -5,
+    });
+
+    expect(mockWixApiFetch).toHaveBeenCalledWith(
+      config, 'POST', '/wix-data/v2/items/query',
+      expect.objectContaining({
+        query: expect.objectContaining({
+          paging: expect.objectContaining({ offset: 0 }),
+        }),
+      }),
+    );
+  });
+
   it('clamps limit to max 100', async () => {
     mockWixApiFetch.mockResolvedValue({
       ok: true, status: 200,

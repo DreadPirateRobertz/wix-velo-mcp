@@ -46,7 +46,7 @@ export async function veloDataItemQuery(
   }
 
   const limit = Math.min(Math.max(input.limit ?? 50, 1), 100);
-  const offset = input.offset ?? 0;
+  const offset = Math.max(input.offset ?? 0, 0);
 
   const query: Record<string, unknown> = {
     paging: { limit, offset },
