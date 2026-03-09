@@ -7,6 +7,8 @@ export interface VeloConfig {
   wixSiteId?: string;
   /** Wix account ID — required for account-level API access */
   wixAccountId?: string;
+  /** Wix headless OAuth client ID — required for headless API access */
+  wixClientId?: string;
 }
 
 /**
@@ -27,6 +29,7 @@ export function getConfig(): VeloConfig {
   const wixApiKey = (process.env.WIX_API_KEY || '').trim() || undefined;
   const wixSiteId = (process.env.WIX_SITE_ID || '').trim() || undefined;
   const wixAccountId = (process.env.WIX_ACCOUNT_ID || '').trim() || undefined;
+  const wixClientId = (process.env.WIX_CLIENT_ID || '').trim() || undefined;
 
-  return { devRepo, prodRepo, wixApiKey, wixSiteId, wixAccountId };
+  return { devRepo, prodRepo, wixApiKey, wixSiteId, wixAccountId, wixClientId };
 }
